@@ -65,7 +65,7 @@ jobs:
       - name: 中身のチェック（壊れた .app を配らないため）
         run: |
           set -euo pipefail
-          APP="$(ls -d build/*.app | head -n 1)"
+          APP="$(find build -maxdepth 3 -type d -name '*.app' | head -n 1)"
           test -x "$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist"
           lipo -info "$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
