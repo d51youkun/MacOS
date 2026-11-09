@@ -1,0 +1,119 @@
+name: App on the fly
+
+# ── 起動方法は3つ ─────────────────────────────
+# 1. Actions タブ → Run workflow（spec ファイルを指定）
+# 2. Issue に "build" ラベルを付ける（本文の ```json ブロックがレシピになる）
+# 3. specs/**.json を push（main ブランチ）
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: "specs/ 以下のレシピJSON"
+        required: true
+        default: "specs/hello.json"
+      release:
+        description: "Release に .zip を添付する"
+        type: boolean
+        default: true
+  issues:
+    types: [opened, labeled]
+  push:
+    branches: [main]
+    paths:
+      - "specs/**.json"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: build-${{ github.ref }}-${{ github.event.issue.number || 'push' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Issue 経由のときは "build" ラベルが付いているときだけ動く
+    if: >
+      github.event_name != 'issues' ||
+      contains(github.event.issue.labels.*.name, 'build')
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 環境を記録
+        run: |
+          sw_vers
+          xcrun swift --version
+          python3 --version
+
+      - name: レシピを決める（Issue本文 or 入力 or 変更されたspec）
+        id: spec
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          INPUT_SPEC: ${{ inputs.spec }}
+        run: |
+          python3 scripts/prepare_spec.py
+
+      - name: .app をビルド
+        env:
+          SPEC: ${{ steps.spec.outputs.spec }}
+        run: |
+          bash scripts/build_app.sh "$SPEC"
+
+      - name: 中身のチェック（壊れた .app を配らないため）
+        run: |
+          set -euo pipefail
+          APP="$(ls -d build/*.app | head -n 1)"
+          test -x "$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist"
+          lipo -info "$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
+          codesign -dv "$APP" 2>&1 | grep -E 'Signature|Identifier' || true
+          otool -L "$APP/Contents/MacOS/"* | grep -q SwiftUI
+
+      - name: 成果物を保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ steps.spec.outputs.slug }}-${{ github.run_number }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          retention-days: 14
+
+      - name: Release に添付
+        if: github.event_name == 'issues' || inputs.release == true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.spec.outputs.slug }}-v${{ steps.spec.outputs.version }}-${{ github.run_number }}
+          NAME: ${{ steps.spec.outputs.name }}
+          VERSION: ${{ steps.spec.outputs.version }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## $NAME $VERSION"
+            echo ""
+            echo "GitHub Actions の macOS ランナーで自動ビルドした .app です。"
+            echo ""
+            echo "1. zip をダウンロードして展開"
+            echo "2. 右クリック →「開く」（ad-hoc 署名のため初回だけ警告が出ます）"
+            echo ""
+            echo "それでも開けない場合:"
+            echo '```'
+            echo "xattr -dr com.apple.quarantine $NAME.app"
+            echo '```'
+          } > release-notes.md
+          gh release create "$TAG" dist/*.zip dist/*.sha256 \
+            --title "$NAME $VERSION" \
+            --notes-file release-notes.md
+
+      - name: Issue に結果をコメント
+        if: github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.spec.outputs.slug }}-v${{ steps.spec.outputs.version }}-${{ github.run_number }}
+          NAME: ${{ steps.spec.outputs.name }}
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" --body "✅ **$NAME** のビルドができました
+
+          → $URL"

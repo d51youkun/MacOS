@@ -1,0 +1,10 @@
+{
+  "name": "館山テトリス",
+  "bundle_id": "com.example.tateyama.tetris",
+  "version": "0.1.0",
+  "tagline": "館山から世界へ。まずはボタンを押すところから",
+  "accent": "#1B4DFF",
+  "second": "#6EE7FF",
+  "symbol": "square.grid.3x3.fill",
+  "min_macos": "13.0"
+}

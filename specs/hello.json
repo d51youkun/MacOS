@@ -1,0 +1,10 @@
+{
+  "name": "Hello Fly",
+  "bundle_id": "com.example.hellofly",
+  "version": "1.0.0",
+  "tagline": "GitHub に push すると macOS アプリになるサンプル",
+  "accent": "#FF6B35",
+  "second": "#FFB03A",
+  "symbol": "paperplane.fill",
+  "min_macos": "13.0"
+}

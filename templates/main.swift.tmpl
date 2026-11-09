@@ -1,0 +1,90 @@
+import SwiftUI
+import AppKit
+
+@main
+struct __STRUCT__: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+    }
+}
+
+struct ContentView: View {
+    @State private var taps = 0
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "__ACCENT__"), Color(hex: "__SECOND__")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            Circle()
+                .fill(.white.opacity(0.10))
+                .frame(width: 320, height: 320)
+                .offset(x: 170, y: -140)
+                .blur(radius: 2)
+
+            VStack(spacing: 16) {
+                Image(systemName: "__SYMBOL__")
+                    .font(.system(size: 62, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.22), radius: 14, y: 7)
+
+                Text("__APP_NAME__")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+
+                Text("__TAGLINE__")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 380)
+
+                Button {
+                    taps += 1
+                } label: {
+                    Text(taps == 0 ? "おしてみて" : "\(taps) 回")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(hex: "__ACCENT__"))
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 12)
+                        .background(.white.opacity(0.96), in: Capsule())
+                        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
+
+                Text("v__VERSION__ ・ GitHub Actions で生成 ・ macOS __MIN_MACOS__+")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.70))
+                    .padding(.top, 6)
+            }
+            .padding(40)
+        }
+        .frame(width: 560, height: 420)
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("#") { s.removeFirst() }
+        if s.count == 3 { s = s.map { "\($0)\($0)" }.joined() }
+        var v: UInt64 = 0
+        Scanner(string: s).scanHexInt64(&v)
+        self.init(
+            .sRGB,
+            red: Double((v >> 16) & 0xFF) / 255.0,
+            green: Double((v >> 8) & 0xFF) / 255.0,
+            blue: Double(v & 0xFF) / 255.0,
+            opacity: 1.0
+        )
+    }
+}
